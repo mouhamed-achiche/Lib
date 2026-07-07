@@ -1,89 +1,10 @@
 const getPool = require("../config/db");
-const { hasDbConfig } = require("../config/db");
-const store = require("../data/store");
 const { ORDER_STATUS } = require("../lib/orderStatus");
 const ordersRepo = require("./orders.repository");
 const productsRepo = require("./products.repository");
 
 async function getStats(query = {}) {
   const { period = "all", category } = query;
-
-  if (!hasDbConfig()) {
-    let limitDate = null;
-    if (period === "today") {
-      limitDate = new Date();
-      limitDate.setHours(0, 0, 0, 0);
-    } else if (period === "7days") {
-      limitDate = new Date();
-      limitDate.setDate(limitDate.getDate() - 7);
-    } else if (period === "30days") {
-      limitDate = new Date();
-      limitDate.setDate(limitDate.getDate() - 30);
-    }
-
-    // Filter orders by date
-    let filteredOrders = limitDate
-      ? store.orders.filter((o) => new Date(o.createdAt) >= limitDate)
-      : store.orders;
-
-    // Further filter orders/items by category if specified
-    const productSales = {};
-    let filteredRevenue = 0;
-    let filteredOrderCount = 0;
-
-    filteredOrders.forEach((order) => {
-      let orderMatchesCategory = false;
-      let orderContribution = 0;
-
-      (order.items || []).forEach((item) => {
-        const prod = store.getProductByIdOrSlug(item.productId || item.id);
-        const matchesCat = !category || category === "all" || (prod && prod.categorySlug === category);
-
-        if (matchesCat) {
-          orderMatchesCategory = true;
-          const prodId = item.productId || item.id;
-          const name = item.title || item.name || "Unknown Product";
-          const quantity = Number(item.quantity || 0);
-          const subtotal = Number(item.total || item.subtotal || 0);
-
-          if (!productSales[prodId]) {
-            productSales[prodId] = { name, sold: 0, revenue: 0 };
-          }
-          productSales[prodId].sold += quantity;
-          productSales[prodId].revenue += subtotal;
-          orderContribution += subtotal;
-        }
-      });
-
-      if (orderMatchesCategory || !category || category === "all") {
-        filteredOrderCount++;
-        filteredRevenue += orderContribution || Number(order.total || 0);
-      }
-    });
-
-    const pending = filteredOrders.filter(
-      (o) =>
-        o.status === ORDER_STATUS.PENDING_APPROVAL_CALL ||
-        o.status === ORDER_STATUS.NO_ANSWER_ON_CALL,
-    ).length;
-
-    const topProducts = Object.values(productSales)
-      .sort((a, b) => b.sold - a.sold)
-      .slice(0, 5);
-
-    return {
-      products: store.products.length,
-      categories: store.categories.length,
-      users: store.users.length,
-      orders: filteredOrderCount,
-      newsletterSubscribers: store.newsletterSubscribers.length,
-      revenue: Number(filteredRevenue.toFixed(2)),
-      pendingOrders: pending,
-      recentOrders: filteredOrders.slice(0, 5),
-      topProducts,
-    };
-  }
-
   const pool = getPool();
   let dateCondition = "";
   const params = [];
@@ -174,10 +95,6 @@ async function getStats(query = {}) {
 }
 
 async function getUsers() {
-  if (!hasDbConfig()) {
-    return store.users.map((u) => store.sanitizeUser(u));
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(
     "SELECT id, name, email, role, phone, address, city, created_at FROM users ORDER BY created_at DESC",
@@ -201,13 +118,6 @@ async function updateUserRole(userId, role) {
     throw error;
   }
 
-  if (!hasDbConfig()) {
-    const user = store.getUserById(userId);
-    if (!user) return null;
-    user.role = role;
-    return store.sanitizeUser(user);
-  }
-
   const pool = getPool();
   await pool.query("UPDATE users SET role = ? WHERE id = ?", [role, userId]);
   const [rows] = await pool.query(
@@ -225,10 +135,6 @@ async function updateUserRole(userId, role) {
 }
 
 async function createProduct(data) {
-  if (!hasDbConfig()) {
-    return store.createProduct(data);
-  }
-
   const pool = getPool();
   const slug =
     data.slug ||
@@ -262,16 +168,6 @@ async function createProduct(data) {
 }
 
 async function updateProduct(id, data) {
-  if (!hasDbConfig()) {
-    const item = store.updateProduct(id, data);
-    if (!item) {
-      const error = new Error("Product not found.");
-      error.statusCode = 404;
-      throw error;
-    }
-    return item;
-  }
-
   const pool = getPool();
   const allowed = [
     "name",
@@ -305,44 +201,12 @@ async function updateProduct(id, data) {
 }
 
 async function deleteProduct(id) {
-  if (!hasDbConfig()) {
-    const deleted = store.deleteProduct(id);
-    if (!deleted) {
-      const error = new Error("Product not found.");
-      error.statusCode = 404;
-      throw error;
-    }
-    return true;
-  }
   const pool = getPool();
   await pool.query("UPDATE products SET is_active = 0 WHERE id = ?", [id]);
   return true;
 }
 
 async function listProductsAdmin() {
-  if (!hasDbConfig()) {
-    const items = store.products.map((product) => {
-      const category = store.getCategoryBySlug(product.categorySlug);
-      return {
-        id: product.id,
-        slug: product.slug,
-        name: product.title,
-        title: product.title,
-        description: product.description,
-        price: product.price,
-        original_price: product.originalPrice,
-        stock_qty: product.stock,
-        stock: product.stock,
-        categorySlug: product.categorySlug,
-        category_name: category?.name ?? product.categorySlug,
-        category_id: category?.id ?? null,
-        image_url: product.image,
-        image: product.image,
-        currency: product.currency,
-      };
-    });
-    return { items, total: items.length };
-  }
   const pool = getPool();
   const [rows] = await pool.query(`
     SELECT p.*, c.name AS category_name, b.name AS brand_name
@@ -356,22 +220,10 @@ async function listProductsAdmin() {
 }
 
 async function listCategoriesAdmin() {
-  if (!hasDbConfig()) {
-    return store.categories.map((category) => ({
-      id: category.id,
-      slug: category.slug,
-      name: category.name,
-      description: category.description ?? "",
-    }));
-  }
   return productsRepo.getCategories();
 }
 
 async function createCategory(data) {
-  if (!hasDbConfig()) {
-    return store.createCategory(data);
-  }
-
   const pool = getPool();
   const slug =
     data.slug ||
@@ -394,16 +246,6 @@ async function createCategory(data) {
 }
 
 async function updateCategory(id, data) {
-  if (!hasDbConfig()) {
-    const item = store.updateCategory(id, data);
-    if (!item) {
-      const error = new Error("Category not found.");
-      error.statusCode = 404;
-      throw error;
-    }
-    return item;
-  }
-
   const pool = getPool();
   const allowed = ["name", "slug", "description", "icon", "sort_order", "is_active"];
   const updates = [];
@@ -433,26 +275,12 @@ async function updateCategory(id, data) {
 }
 
 async function deleteCategory(id) {
-  if (!hasDbConfig()) {
-    const deleted = store.deleteCategory(id);
-    if (!deleted) {
-      const error = new Error("Category not found.");
-      error.statusCode = 404;
-      throw error;
-    }
-    return true;
-  }
-
   const pool = getPool();
   await pool.query("UPDATE categories SET is_active = 0 WHERE id = ?", [id]);
   return true;
 }
 
 async function listPromos() {
-  if (!hasDbConfig()) {
-    return store.promotions || [];
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(`
     SELECT p.id, p.code, p.title, p.description, p.discount_type, p.discount_value,
@@ -483,21 +311,6 @@ async function listPromos() {
 }
 
 async function createPromo(data, userId) {
-  if (!hasDbConfig()) {
-    const promo = {
-      id: String(Date.now()),
-      ...data,
-      show_announcement: data.show_announcement ?? false,
-      announcement_text: data.announcement_text ?? "",
-      used_count: 0,
-      created_by: userId,
-      created_at: new Date(),
-    };
-    if (!store.promotions) store.promotions = [];
-    store.promotions.push(promo);
-    return promo;
-  }
-
   const pool = getPool();
   // Try inserting with new columns; fall back gracefully if columns don't exist yet
   let result;
@@ -556,13 +369,6 @@ async function createPromo(data, userId) {
 }
 
 async function updatePromo(id, data) {
-  if (!hasDbConfig()) {
-    const promo = (store.promotions || []).find((p) => p.id === id);
-    if (!promo) return null;
-    Object.assign(promo, data);
-    return promo;
-  }
-
   const pool = getPool();
   const allowed = ["code", "title", "description", "discount_type", "discount_value", "max_uses", "start_date", "end_date", "is_active", "show_announcement", "announcement_text"];
   const boolFields = new Set(["is_active", "show_announcement"]);
@@ -602,23 +408,12 @@ async function updatePromo(id, data) {
 }
 
 async function deletePromo(id) {
-  if (!hasDbConfig()) {
-    if (!store.promotions) return true;
-    const index = store.promotions.findIndex((p) => p.id === id);
-    if (index > -1) store.promotions.splice(index, 1);
-    return true;
-  }
-
   const pool = getPool();
   await pool.query("DELETE FROM promotions WHERE id = ?", [id]);
   return true;
 }
 
 async function createBrand(data) {
-  if (!hasDbConfig()) {
-    return store.createBrand(data);
-  }
-
   const pool = getPool();
   const slug =
     data.slug ||
@@ -640,9 +435,6 @@ async function createBrand(data) {
 }
 
 async function listBanners() {
-  if (!hasDbConfig()) {
-    return store.banners || [];
-  }
   const pool = getPool();
   const [rows] = await pool.query(`
     SELECT id, title, subtitle, image_url, link, is_active, sort_order, created_at
@@ -662,21 +454,6 @@ async function listBanners() {
 }
 
 async function createBanner(data) {
-  if (!hasDbConfig()) {
-    const banner = {
-      id: String(Date.now()),
-      title: data.title ?? "",
-      subtitle: data.subtitle ?? "",
-      image_url: data.image_url ?? "",
-      link: data.link ?? "",
-      is_active: data.is_active ? 1 : 0,
-      sort_order: Number(data.sort_order ?? 0),
-      created_at: new Date(),
-    };
-    if (!store.banners) store.banners = [];
-    store.banners.push(banner);
-    return banner;
-  }
   const pool = getPool();
   const [result] = await pool.query(
     `INSERT INTO banners (title, subtitle, image_url, link, is_active, sort_order)
@@ -697,12 +474,6 @@ async function createBanner(data) {
 }
 
 async function updateBanner(id, data) {
-  if (!hasDbConfig()) {
-    const banner = (store.banners || []).find((b) => b.id === id);
-    if (!banner) return null;
-    Object.assign(banner, data);
-    return banner;
-  }
   const pool = getPool();
   const allowed = ["title", "subtitle", "image_url", "link", "is_active", "sort_order"];
   const updates = [];
@@ -720,12 +491,6 @@ async function updateBanner(id, data) {
 }
 
 async function deleteBanner(id) {
-  if (!hasDbConfig()) {
-    if (!store.banners) return true;
-    const index = store.banners.findIndex((b) => b.id === id);
-    if (index > -1) store.banners.splice(index, 1);
-    return true;
-  }
   const pool = getPool();
   await pool.query("DELETE FROM banners WHERE id = ?", [id]);
   return true;
@@ -733,9 +498,6 @@ async function deleteBanner(id) {
 
 // Homepage sections functions
 async function listHomepageSections() {
-  if (!hasDbConfig()) {
-    return store.homepageSections || [];
-  }
   const pool = getPool();
   const [rows] = await pool.query(`
     SELECT s.*, 
@@ -784,20 +546,6 @@ async function createHomepageSection(data) {
     throw new Error('Cannot add more than 100 products to a section');
   }
 
-  if (!hasDbConfig()) {
-    const section = {
-      id: `section-${Date.now()}`,
-      title: data.title.trim(),
-      slug: data.slug.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
-      description: data.description || "",
-      productIds: data.productIds || [],
-      order: data.order !== undefined ? data.order : (store.homepageSections?.length || 0) + 1,
-      is_active: data.is_active !== undefined ? data.is_active : true,
-    };
-    if (!store.homepageSections) store.homepageSections = [];
-    store.homepageSections.push(section);
-    return section;
-  }
   const pool = getPool();
   const [result] = await pool.query(
     `INSERT INTO homepage_sections (title, slug, description, order_num, is_active)
@@ -875,15 +623,6 @@ async function updateHomepageSection(id, data) {
     }
   }
 
-  if (!hasDbConfig()) {
-    const section = (store.homepageSections || []).find((s) => s.id === id);
-    if (!section) return null;
-    Object.assign(section, data);
-    if (data.slug) {
-      section.slug = data.slug.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
-    }
-    return section;
-  }
   const pool = getPool();
   const allowed = ["title", "slug", "description", "order_num", "is_active"];
   const updates = [];
@@ -922,12 +661,6 @@ async function updateHomepageSection(id, data) {
 }
 
 async function deleteHomepageSection(id) {
-  if (!hasDbConfig()) {
-    if (!store.homepageSections) return true;
-    const index = store.homepageSections.findIndex((s) => s.id === id);
-    if (index > -1) store.homepageSections.splice(index, 1);
-    return true;
-  }
   const pool = getPool();
   await pool.query("DELETE FROM homepage_sections WHERE id = ?", [id]);
   return true;

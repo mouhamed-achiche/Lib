@@ -1,12 +1,8 @@
 const bcrypt = require("bcryptjs");
 const getPool = require("../config/db");
-const { hasDbConfig } = require("../config/db");
-const store = require("../data/store");
 const { mapUserRow } = require("../lib/mappers");
 
 async function getUserByEmail(email) {
-  if (!hasDbConfig()) return store.getUserByEmail(email);
-
   const pool = getPool();
   const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [
     String(email).toLowerCase(),
@@ -17,8 +13,6 @@ async function getUserByEmail(email) {
 }
 
 async function getUserById(id) {
-  if (!hasDbConfig()) return store.getUserById(id);
-
   const pool = getPool();
   const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
   const row = rows[0];
@@ -27,11 +21,6 @@ async function getUserById(id) {
 }
 
 async function registerUser({ name, email, password, phone, address, city }) {
-  if (!hasDbConfig()) {
-    const user = store.registerUser({ name, email, password, phone, address, city });
-    return toPublicUser(user);
-  }
-
   const pool = getPool();
   const normalizedEmail = String(email).toLowerCase().trim();
   const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [normalizedEmail]);
@@ -63,11 +52,6 @@ async function registerUser({ name, email, password, phone, address, city }) {
 }
 
 async function updateUser(userId, data) {
-  if (!hasDbConfig()) {
-    const user = store.updateUser(userId, data);
-    return user ? toPublicUser(user) : null;
-  }
-
   const pool = getPool();
   const fields = [];
   const values = [];
@@ -104,11 +88,6 @@ async function updateUser(userId, data) {
 }
 
 async function changePassword(userId, currentPassword, newPassword) {
-  if (!hasDbConfig()) {
-    const user = store.changePassword(userId, currentPassword, newPassword);
-    return toPublicUser(user);
-  }
-
   const pool = getPool();
   const [rows] = await pool.query("SELECT password FROM users WHERE id = ?", [userId]);
   if (!rows.length) return null;

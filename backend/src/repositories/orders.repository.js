@@ -1,6 +1,4 @@
 const getPool = require("../config/db");
-const { hasDbConfig } = require("../config/db");
-const store = require("../data/store");
 const { ORDER_STATUS, canTransitionTo, normalizeOrderStatus, normalizePhone, parseOrderReference } = require("../lib/orderStatus");
 const { mapOrderRow } = require("../lib/mappers");
 const productsRepo = require("./products.repository");
@@ -42,8 +40,6 @@ async function resolveOrderItems(items) {
 }
 
 async function createGuestOrder(payload) {
-  if (!hasDbConfig()) return store.createGuestOrder(payload);
-
   const items = await resolveOrderItems(payload.items || []);
   if (!items.length) {
     const error = new Error("Order must include at least one item.");
@@ -106,8 +102,6 @@ async function createGuestOrder(payload) {
 }
 
 async function createOrder(userId, payload = {}) {
-  if (!hasDbConfig()) return store.createOrder(userId, payload);
-
   const items = await resolveOrderItems(
     Array.isArray(payload.items) && payload.items.length ? payload.items : [],
   );
@@ -193,8 +187,6 @@ async function fetchOrderWithItems(whereClause, params) {
 }
 
 async function getOrderById(orderId) {
-  if (!hasDbConfig()) return store.getOrderById(orderId);
-
   const id = parseOrderReference(orderId) || orderId;
   const pool = getPool();
   const [orders] = await pool.query(
@@ -215,8 +207,6 @@ async function getOrderById(orderId) {
 }
 
 async function findOrderByReference(reference, phone) {
-  if (!hasDbConfig()) return store.findOrderByReference(reference, phone);
-
   const order = await getOrderById(reference);
   if (!order) return null;
   if (normalizePhone(order.phone) !== normalizePhone(phone)) return null;
@@ -224,10 +214,6 @@ async function findOrderByReference(reference, phone) {
 }
 
 async function getUserOrders(userId) {
-  if (!hasDbConfig()) {
-    return store.orders.filter((o) => o.userId === userId || o.customerId === userId);
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(
     "SELECT o.*, u.email AS customer_email FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.user_id = ? ORDER BY o.created_at DESC",
@@ -249,14 +235,6 @@ async function getUserOrders(userId) {
 }
 
 async function listAllOrders(status) {
-  if (!hasDbConfig()) {
-    let items = store.orders;
-    if (status && status !== "all") {
-      items = items.filter((o) => normalizeOrderStatus(o.status) === status);
-    }
-    return items;
-  }
-
   const pool = getPool();
   let sql = `SELECT o.*, u.email AS customer_email
              FROM orders o LEFT JOIN users u ON o.user_id = u.id`;
@@ -283,8 +261,6 @@ async function listAllOrders(status) {
 }
 
 async function updateOrderStatus(orderId, nextStatus) {
-  if (!hasDbConfig()) return store.updateOrderStatus(orderId, nextStatus);
-
   const order = await getOrderById(orderId);
   if (!order) return null;
 
@@ -333,8 +309,6 @@ async function updateOrderStatus(orderId, nextStatus) {
 }
 
 async function deleteOrder(orderId) {
-  if (!hasDbConfig()) return store.deleteOrder(orderId);
-
   const order = await getOrderById(orderId);
   if (!order) return null;
 

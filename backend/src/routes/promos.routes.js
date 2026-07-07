@@ -1,7 +1,6 @@
 const express = require("express");
 const adminRepo = require("../repositories/admin.repository");
-const store = require("../data/store");
-const { hasDbConfig } = require("../config/db");
+const getPool = require("../config/db");
 
 const router = express.Router();
 
@@ -9,16 +8,27 @@ const router = express.Router();
 router.get("/active", async (req, res, next) => {
   try {
     const now = new Date();
-    let promo = null;
-
-    // Always use in-memory store for now (SQLite NOW() function not supported)
-    const promos = store.promotions || [];
-    promo = promos.find((p) => {
-      if (!p.is_active || !p.show_announcement) return false;
-      const start = new Date(p.start_date);
-      const end = new Date(p.end_date);
-      return start <= now && end > now;
-    }) || null;
+    const pool = getPool();
+    const [rows] = await pool.query(
+      `SELECT * FROM promotions 
+       WHERE is_active = 1 AND show_announcement = 1 
+       AND start_date <= ? AND end_date > ?
+       ORDER BY created_at DESC LIMIT 1`,
+      [now.toISOString(), now.toISOString()]
+    );
+    
+    const promo = rows[0] ? {
+      id: String(rows[0].id),
+      code: rows[0].code,
+      title: rows[0].title,
+      description: rows[0].description,
+      discount_type: rows[0].discount_type,
+      discount_value: Number(rows[0].discount_value),
+      start_date: rows[0].start_date,
+      end_date: rows[0].end_date,
+      show_announcement: Boolean(rows[0].show_announcement),
+      announcement_text: rows[0].announcement_text ?? "",
+    } : null;
 
     res.json({ success: true, data: { promo } });
   } catch (error) {

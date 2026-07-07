@@ -1,6 +1,4 @@
 const getPool = require("../config/db");
-const { hasDbConfig } = require("../config/db");
-const store = require("../data/store");
 const productsRepo = require("./products.repository");
 
 const FREE_SHIPPING = () => Number(process.env.FREE_SHIPPING_THRESHOLD || 200);
@@ -16,8 +14,6 @@ async function getOrCreateCartId(userId, conn) {
 }
 
 async function serializeCart(userId) {
-  if (!hasDbConfig()) return store.serializeCart(userId);
-
   const pool = getPool();
   const cartId = await getOrCreateCartId(userId);
   const [rows] = await pool.query(
@@ -65,17 +61,6 @@ async function serializeCart(userId) {
 }
 
 async function addItem(userId, productId, quantity = 1) {
-  if (!hasDbConfig()) {
-    const product = store.getProductByIdOrSlug(productId);
-    if (!product) {
-      const error = new Error("Product not found.");
-      error.statusCode = 404;
-      throw error;
-    }
-    store.upsertCartItem(userId, product.id, quantity);
-    return serializeCart(userId);
-  }
-
   const product = await productsRepo.getProductByIdOrSlug(productId);
   if (!product) {
     const error = new Error("Product not found.");
@@ -105,11 +90,6 @@ async function addItem(userId, productId, quantity = 1) {
 }
 
 async function updateItem(userId, itemId, quantity) {
-  if (!hasDbConfig()) {
-    store.updateCartItem(userId, itemId, quantity);
-    return serializeCart(userId);
-  }
-
   const pool = getPool();
   const cartId = await getOrCreateCartId(userId);
   if (quantity <= 0) {
@@ -138,11 +118,6 @@ async function updateItem(userId, itemId, quantity) {
 }
 
 async function removeItem(userId, itemId) {
-  if (!hasDbConfig()) {
-    store.removeCartItem(userId, itemId);
-    return serializeCart(userId);
-  }
-
   const pool = getPool();
   const cartId = await getOrCreateCartId(userId);
   await pool.query("DELETE FROM cart_items WHERE id = ? AND cart_id = ?", [itemId, cartId]);
@@ -150,11 +125,6 @@ async function removeItem(userId, itemId) {
 }
 
 async function clearCart(userId) {
-  if (!hasDbConfig()) {
-    store.clearCart(userId);
-    return serializeCart(userId);
-  }
-
   const pool = getPool();
   const [carts] = await pool.query("SELECT id FROM carts WHERE user_id = ?", [userId]);
   if (carts.length) {

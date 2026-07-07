@@ -1,6 +1,4 @@
 const getPool = require("../config/db");
-const { hasDbConfig } = require("../config/db");
-const store = require("../data/store");
 
 function mapDealFromDb(dbDeal) {
   if (!dbDeal) return null;
@@ -21,10 +19,6 @@ function mapDealFromDb(dbDeal) {
 }
 
 async function getAllDeals() {
-  if (!hasDbConfig()) {
-    return store.dealOfTheDay || [];
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(
     "SELECT * FROM deals ORDER BY created_at DESC"
@@ -33,27 +27,12 @@ async function getAllDeals() {
 }
 
 async function getDealById(id) {
-  if (!hasDbConfig()) {
-    return store.dealOfTheDay?.find((d) => d.id === id);
-  }
-
   const pool = getPool();
   const [rows] = await pool.query("SELECT * FROM deals WHERE id = ?", [id]);
   return mapDealFromDb(rows[0]);
 }
 
 async function createDeal(dealData) {
-  if (!hasDbConfig()) {
-    const deal = {
-      id: `deal-${Date.now()}`,
-      ...dealData,
-      expiryTimestamp: new Date(dealData.expiryTimestamp),
-      is_active: dealData.is_active !== undefined ? dealData.is_active : true,
-    };
-    store.dealOfTheDay.push(deal);
-    return deal;
-  }
-
   const pool = getPool();
   const id = dealData.id || `deal-${Date.now()}`;
   const now = new Date().toISOString();
@@ -81,23 +60,6 @@ async function createDeal(dealData) {
 }
 
 async function updateDeal(id, updates) {
-  if (!hasDbConfig()) {
-    const index = store.dealOfTheDay.findIndex((d) => d.id === id);
-    if (index === -1) return null;
-
-    const deal = store.dealOfTheDay[index];
-    const updatedDeal = {
-      ...deal,
-      ...updates,
-      originalPrice: updates.originalPrice !== undefined ? Number(updates.originalPrice) : deal.originalPrice,
-      salePrice: updates.salePrice !== undefined ? Number(updates.salePrice) : deal.salePrice,
-      expiryTimestamp: updates.expiryTimestamp ? new Date(updates.expiryTimestamp) : deal.expiryTimestamp,
-    };
-
-    store.dealOfTheDay[index] = updatedDeal;
-    return updatedDeal;
-  }
-
   const pool = getPool();
   const now = new Date().toISOString();
 
@@ -158,28 +120,12 @@ async function updateDeal(id, updates) {
 }
 
 async function deleteDeal(id) {
-  if (!hasDbConfig()) {
-    const index = store.dealOfTheDay.findIndex((d) => d.id === id);
-    if (index === -1) return false;
-    store.dealOfTheDay.splice(index, 1);
-    return true;
-  }
-
   const pool = getPool();
   const [result] = await pool.query("DELETE FROM deals WHERE id = ?", [id]);
   return result.affectedRows > 0;
 }
 
 async function getActiveDeals() {
-  if (!hasDbConfig()) {
-    const now = new Date();
-    return (store.dealOfTheDay || []).filter((d) => {
-      if (!d.is_active) return false;
-      const expiry = new Date(d.expiryTimestamp);
-      return expiry > now;
-    });
-  }
-
   const pool = getPool();
   const now = Date.now();
   const [rows] = await pool.query(

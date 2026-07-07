@@ -1,6 +1,4 @@
 const getPool = require("../config/db");
-const { hasDbConfig } = require("../config/db");
-const store = require("../data/store");
 const { mapCategoryRow, mapBrandRow, mapProductRow } = require("../lib/mappers");
 
 const PRODUCT_SELECT = `
@@ -13,15 +11,6 @@ const PRODUCT_SELECT = `
 `;
 
 async function getCategories() {
-  if (!hasDbConfig()) {
-    return store.categories.map((c) => ({
-      id: c.id,
-      slug: c.slug,
-      name: c.name,
-      description: c.description ?? "",
-    }));
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(`
     SELECT c.*, p.name AS parent_name
@@ -34,8 +23,6 @@ async function getCategories() {
 }
 
 async function getCategoryBySlug(slug) {
-  if (!hasDbConfig()) return store.getCategoryBySlug(slug);
-
   const pool = getPool();
   const [rows] = await pool.query(
     "SELECT * FROM categories WHERE slug = ? AND is_active = 1",
@@ -45,8 +32,6 @@ async function getCategoryBySlug(slug) {
 }
 
 async function getBrands() {
-  if (!hasDbConfig()) return store.brands;
-
   const pool = getPool();
   const [rows] = await pool.query(
     "SELECT * FROM brands WHERE is_active = 1 ORDER BY name",
@@ -64,34 +49,6 @@ async function getProductImages(productId) {
 }
 
 async function listProducts(query = {}) {
-  if (!hasDbConfig()) {
-    let items = [...store.products];
-    const { category, brand, search } = query;
-
-    if (category && category !== "all") {
-      items = items.filter((p) => p.categorySlug === category);
-    }
-    if (brand) {
-      items = items.filter((p) => p.brandSlug === brand || p.brand === brand);
-    }
-    if (search) {
-      const term = String(search).toLowerCase();
-      items = items.filter(
-        (p) =>
-          p.title.toLowerCase().includes(term) ||
-          (p.description || "").toLowerCase().includes(term),
-      );
-    }
-
-    const page = Number(query.page || 1);
-    const limit = Number(query.limit || 200);
-    const total = items.length;
-    const offset = (page - 1) * limit;
-    items = items.slice(offset, offset + limit);
-
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
-  }
-
   const pool = getPool();
   const {
     category,
@@ -171,11 +128,6 @@ async function searchProducts(q) {
 }
 
 async function getProductBySlug(slug) {
-  if (!hasDbConfig()) {
-    const item = store.getProductByIdOrSlug(slug);
-    return item ? { item } : null;
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(`${PRODUCT_SELECT} AND p.slug = ?`, [slug]);
   if (!rows.length) return null;
@@ -185,8 +137,6 @@ async function getProductBySlug(slug) {
 }
 
 async function getProductByIdOrSlug(identifier) {
-  if (!hasDbConfig()) return store.getProductByIdOrSlug(identifier);
-
   const pool = getPool();
   const isNumeric = !Number.isNaN(Number(identifier));
   const [rows] = await pool.query(
@@ -200,25 +150,6 @@ async function getProductByIdOrSlug(identifier) {
 }
 
 async function getBestSelling(limit = 4) {
-  if (!hasDbConfig()) {
-    const productSales = {};
-    store.orders.forEach((order) => {
-      (order.items || []).forEach((item) => {
-        const prodId = item.productId || item.id;
-        const quantity = Number(item.quantity || 0);
-        productSales[prodId] = (productSales[prodId] || 0) + quantity;
-      });
-    });
-
-    const sortedProducts = [...store.products].sort((a, b) => {
-      const soldA = productSales[a.id] || 0;
-      const soldB = productSales[b.id] || 0;
-      return soldB - soldA;
-    });
-
-    return sortedProducts.slice(0, limit);
-  }
-
   const pool = getPool();
   const [rows] = await pool.query(
     `SELECT p.*, c.slug AS category_slug, c.name AS category_name,

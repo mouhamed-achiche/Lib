@@ -92,3 +92,15 @@ Runs on **http://localhost:5173** and proxies `/api` to the backend.
 
 ## Order workflow
 Orders start as **Need approval (call)**. Staff update status in **Dashboard → Orders**.
+
+
+gitignore 
+node_modules/
+.env
+.env.local
+.env.production
+.env.development
+dist/
+build/
+.DS_Store
+*.log

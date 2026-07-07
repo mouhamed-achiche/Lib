@@ -4,7 +4,7 @@ const isAdmin = require("../middleware/isAdmin");
 const adminRepo = require("../repositories/admin.repository");
 const productsRepo = require("../repositories/products.repository");
 const dealsRepo = require("../repositories/deals.repository");
-const store = require("../data/store");
+const getPool = require("../config/db");
 const { sanitizeRequestBody, sanitizeUserContent } = require("../middleware/inputSanitizer");
 const { apiLimiter } = require("../middleware/rateLimiter");
 
@@ -167,8 +167,14 @@ router.patch("/users/:id/role", async (req, res, next) => {
   }
 });
 
-router.get("/newsletter", (req, res) => {
-  res.json({ success: true, data: { items: store.newsletterSubscribers } });
+router.get("/newsletter", async (req, res, next) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query("SELECT * FROM newsletter_subscribers ORDER BY created_at DESC");
+    res.json({ success: true, data: { items: rows } });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Deal of the Day management

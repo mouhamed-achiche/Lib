@@ -6,28 +6,28 @@ const PORT = process.env.PORT || 5000
 
 ;(async () => {
   try {
-    if (hasDbConfig()) {
-      const db = getDb()
-      if (db) {
-        // Test the connection by querying SQLite master table
-        db.get("SELECT 1", (err) => {
-          if (err) {
-            throw new Error('Database test failed: ' + err.message)
-          }
-          console.log('✅ SQLite database connected')
-          startServer(PORT)
-        })
-      } else {
-        throw new Error('Failed to initialize database')
-      }
-    } else {
-      console.log('📋 SQLite config not detected, starting API with in-memory data')
-      startServer(PORT)
+    if (!hasDbConfig()) {
+      console.error('❌ SQLite database not configured. Please set DB_PATH in .env file.')
+      process.exit(1)
     }
+
+    const db = getDb()
+    if (!db) {
+      throw new Error('Failed to initialize database')
+    }
+
+    // Test the connection by querying SQLite master table
+    db.get("SELECT 1", (err) => {
+      if (err) {
+        throw new Error('Database test failed: ' + err.message)
+      }
+      console.log('✅ SQLite database connected')
+      startServer(PORT)
+    })
   } catch (err) {
     setDbFailed(true)
-    console.warn('⚠️  DB connection failed, continuing with in-memory data:', err.message)
-    startServer(PORT)
+    console.error('❌ Database connection failed:', err.message)
+    process.exit(1)
   }
 })()
 
