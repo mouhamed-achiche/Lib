@@ -1,0 +1,243 @@
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-background: #fbf9fa;
+  --color-surface: #fbf9fa;
+  --color-surface-container: #efedef;
+  --color-surface-container-low: #f5f3f4;
+  --color-surface-container-high: #eae7e9;
+  --color-surface-variant: #e4e2e3;
+  --color-muted-gray: #f4f7f9;
+  --color-paper-white: #fdfdfd;
+  --color-ink-black: #1a1a1a;
+  --color-on-surface: #1b1c1d;
+  --color-on-surface-variant: #44474c;
+  --color-outline: #74777d;
+  --color-outline-variant: #c4c6cc;
+  --color-primary: #162636;
+  --color-secondary: #bc0005;
+  --color-academic-blue: #2c3c4d;
+  --color-oxford-red: #e2231a;
+  --color-error: #ba1a1a;
+  --color-foreground: #1b1c1d;
+  --color-card: #fbf9fa;
+  --color-card-foreground: #1b1c1d;
+  --color-border: #c4c6cc;
+  --color-input: #c4c6cc;
+  --color-ring: #2c3c4d;
+  --color-muted: #f4f7f9;
+  --color-muted-foreground: #44474c;
+  --color-accent: #efedef;
+  --color-accent-foreground: #1b1c1d;
+  --color-destructive: #ba1a1a;
+  --color-destructive-foreground: #ffffff;
+  --color-popover: #fbf9fa;
+  --color-popover-foreground: #1b1c1d;
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #ffffff;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "Noto Kufi Arabic", ui-sans-serif, system-ui, sans-serif;
+
+  --spacing-stack-sm: 0.5rem;
+  --spacing-stack-md: 1rem;
+  --spacing-stack-lg: 1.5rem;
+  --spacing-section-gap: 2.5rem;
+  --spacing-gutter: 1rem;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: var(--color-background);
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* RTL Support for Arabic */
+  [dir="rtl"] {
+    direction: rtl;
+  }
+
+  [dir="rtl"] body {
+    font-family: var(--font-arabic);
+  }
+
+  [dir="rtl"] .material-symbols-outlined {
+    transform: scaleX(-1);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-headline);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Professional Design Enhancements */
+@layer components {
+  /* Buttons */
+  button {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  button:not(:disabled):hover {
+    @apply translate-y-[-1px];
+  }
+
+  /* Cards and containers */
+  .card, .product-card {
+    @apply rounded-lg border bg-white transition-all duration-300;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card:hover, .product-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Header enhancement */
+  header {
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Input fields */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    @apply rounded-md border transition-colors duration-200;
+    @apply focus:border-academic-blue focus:outline-none focus:ring-2;
+  }
+
+  /* Improved button styles */
+  .btn-primary {
+    @apply rounded-md px-6 py-3 font-semibold text-white transition-all duration-200;
+    background-color: var(--color-oxford-red);
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(0.9);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .btn-secondary {
+    @apply rounded-md px-6 py-3 font-semibold transition-all duration-200;
+    background-color: var(--color-surface-container);
+    color: var(--color-on-surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-outline {
+    @apply rounded-md border-2 px-6 py-2 font-semibold transition-all duration-200;
+    color: var(--color-on-surface);
+    border-color: var(--color-outline-variant);
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    border-color: var(--color-academic-blue);
+    color: var(--color-academic-blue);
+    background-color: var(--color-primary-fixed);
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-block rounded-full px-3 py-1 text-xs font-semibold;
+  }
+
+  .badge-primary {
+    @apply text-academic-blue;
+    background-color: var(--color-primary-fixed);
+  }
+
+  .badge-secondary {
+    @apply text-oxford-red;
+    background-color: rgba(226, 35, 26, 0.1);
+  }
+
+  /* Form field groups */
+  .form-field {
+    @apply flex flex-col gap-2;
+  }
+
+  .form-label {
+    @apply text-sm font-semibold;
+    color: var(--color-on-surface);
+  }
+
+  /* Section spacing */
+  .section {
+    @apply py-8 md:py-12 lg:py-16;
+  }
+
+  /* Improved hero/banner styles */
+  .hero {
+    @apply rounded-xl overflow-hidden;
+    box-shadow: var(--shadow-lg);
+  }
+}
