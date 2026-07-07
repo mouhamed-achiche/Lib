@@ -112,16 +112,16 @@ export const ORDER_STATUS_TRANSITIONS = {
 };
 
 export const ORDER_STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "All orders" },
-  { value: ORDER_STATUS.PENDING_APPROVAL_CALL, label: "Need approval (call)" },
-  { value: ORDER_STATUS.NO_ANSWER_ON_CALL, label: "No answer on call" },
-  { value: ORDER_STATUS.APPROVED_NEED_DELIVERY, label: "Approved – need delivery" },
-  { value: ORDER_STATUS.ON_DELIVERY, label: "On delivery" },
-  { value: ORDER_STATUS.APPROVED_DELIVERED, label: "Approved & delivered" },
-  { value: ORDER_STATUS.REJECTED, label: "Rejected" },
-  { value: ORDER_STATUS.REJECTED_AFTER_DELIVERY, label: "Rejected after delivery" },
-  { value: ORDER_STATUS.RETURNED_AFTER_DELIVERY, label: "Returned after delivery" },
-  { value: ORDER_STATUS.CANCELLED, label: "Cancelled" },
+  { value: "all", label: "All orders", labelKey: "allOrders" },
+  { value: ORDER_STATUS.PENDING_APPROVAL_CALL, label: "Need approval (call)", labelKey: "statusPendingApprovalCall" },
+  { value: ORDER_STATUS.NO_ANSWER_ON_CALL, label: "No answer on call", labelKey: "statusNoAnswerOnCall" },
+  { value: ORDER_STATUS.APPROVED_NEED_DELIVERY, label: "Approved – need delivery", labelKey: "statusApprovedNeedDelivery" },
+  { value: ORDER_STATUS.ON_DELIVERY, label: "On delivery", labelKey: "statusOnDelivery" },
+  { value: ORDER_STATUS.APPROVED_DELIVERED, label: "Approved & delivered", labelKey: "statusApprovedDelivered" },
+  { value: ORDER_STATUS.REJECTED, label: "Rejected", labelKey: "statusRejected" },
+  { value: ORDER_STATUS.REJECTED_AFTER_DELIVERY, label: "Rejected after delivery", labelKey: "statusRejectedAfterDelivery" },
+  { value: ORDER_STATUS.RETURNED_AFTER_DELIVERY, label: "Returned after delivery", labelKey: "statusReturnedAfterDelivery" },
+  { value: ORDER_STATUS.CANCELLED, label: "Cancelled", labelKey: "statusCancelled" },
 ];
 
 export function normalizeOrderStatus(status) {
@@ -135,8 +135,26 @@ export function getOrderStatusMeta(status) {
   return ORDER_STATUS_META[normalized] ?? ORDER_STATUS_META[ORDER_STATUS.PENDING_APPROVAL_CALL];
 }
 
-export function getOrderStatusLabel(status, { forCustomer = false } = {}) {
+export function getOrderStatusLabel(status, { forCustomer = false, t = null } = {}) {
   const meta = getOrderStatusMeta(status);
+  if (t) {
+    const statusKeyMap = {
+      [ORDER_STATUS.PENDING_APPROVAL_CALL]: "statusPendingApprovalCall",
+      [ORDER_STATUS.NO_ANSWER_ON_CALL]: "statusNoAnswerOnCall",
+      [ORDER_STATUS.APPROVED_NEED_DELIVERY]: "statusApprovedNeedDelivery",
+      [ORDER_STATUS.ON_DELIVERY]: "statusOnDelivery",
+      [ORDER_STATUS.APPROVED_DELIVERED]: "statusApprovedDelivered",
+      [ORDER_STATUS.REJECTED]: "statusRejected",
+      [ORDER_STATUS.REJECTED_AFTER_DELIVERY]: "statusRejectedAfterDelivery",
+      [ORDER_STATUS.RETURNED_AFTER_DELIVERY]: "statusReturnedAfterDelivery",
+      [ORDER_STATUS.CANCELLED]: "statusCancelled",
+    };
+    const normalized = normalizeOrderStatus(status);
+    const translationKey = statusKeyMap[normalized];
+    if (translationKey) {
+      return t(translationKey);
+    }
+  }
   return forCustomer ? meta.customerLabel : meta.label;
 }
 

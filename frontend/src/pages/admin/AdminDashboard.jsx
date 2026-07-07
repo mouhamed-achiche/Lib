@@ -5,6 +5,7 @@ import { adminApi } from "@/lib/api";
 import { formatPrice } from "@/lib/formatPrice";
 import SortDropdown from "@/components/SortDropdown";
 import ApiHealthChecker from "@/components/ApiHealthChecker";
+import { useLanguage } from "@/lib/language";
 import {
   ORDER_STATUS,
   ORDER_STATUS_FILTER_OPTIONS,
@@ -20,12 +21,13 @@ export default function AdminDashboard() {
   const { orders, loading } = useOrdersList();
   const [stats, setStats] = useState(null);
   const [sortBy, setSortBy] = useState("date-desc");
+  const { t } = useLanguage();
 
   const ORDER_SORT_OPTIONS = [
-    { value: "date-desc", label: "Date, de la plus récente à la plus ancienne" },
-    { value: "date-asc", label: "Date, de la plus ancienne à la plus récente" },
-    { value: "name-asc", label: "Client, de A à Z" },
-    { value: "name-desc", label: "Client, de Z à A" },
+    { value: "date-desc", label: t("sortDateNewest") },
+    { value: "date-asc", label: t("sortDateOldest") },
+    { value: "name-asc", label: t("sortCustomerAZ") },
+    { value: "name-desc", label: t("sortCustomerZA") },
   ];
 
   const loadStats = useCallback(async () => {
@@ -76,17 +78,17 @@ export default function AdminDashboard() {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <h1 className="font-headline text-3xl font-bold tracking-tight text-academic-blue">
-            Tableau de bord du personnel
+            {t("staffDashboard")}
           </h1>
           <p className="mt-2 text-[16px] text-on-surface-variant">
-            Suivez les commandes depuis l'appel de confirmation jusqu'à la livraison.
+            {t("staffDashboardSubtitle")}
           </p>
         </div>
         <Link
           className="inline-flex items-center justify-center rounded-md bg-oxford-red px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-white"
           to="/dashboard/orders"
         >
-          Gérer les commandes
+          {t("manageOrders")}
         </Link>
       </div>
 
@@ -96,8 +98,8 @@ export default function AdminDashboard() {
       {/* Sorting Bar */}
       <div className="mt-6 flex flex-wrap justify-between items-center bg-surface border border-outline-variant rounded-xl p-4 gap-4">
         <div className="flex flex-col">
-          <h2 className="text-[15px] font-semibold text-academic-blue">Tri des commandes récentes</h2>
-          <p className="text-[13px] text-on-surface-variant">Sélectionnez une option ci-dessous pour trier</p>
+          <h2 className="text-[15px] font-semibold text-academic-blue">{t("recentOrdersSort")}</h2>
+          <p className="text-[13px] text-on-surface-variant">{t("selectSortOption")}</p>
         </div>
         <SortDropdown
           value={sortBy}
@@ -107,46 +109,46 @@ export default function AdminDashboard() {
       </div>
 
       {loading && (
-        <p className="mt-6 text-on-surface-variant">Chargement du tableau de bord...</p>
+        <p className="mt-6 text-on-surface-variant">{t("loadingDashboard")}</p>
       )}
 
       {/* Stats Cards */}
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <article className="rounded-xl border border-outline-variant bg-surface p-5">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-            Nécessite une action
+            {t("requiresAction")}
           </p>
           <p className="mt-2 font-headline text-4xl font-bold text-oxford-red">{attentionCount}</p>
           <p className="mt-2 text-[14px] text-on-surface-variant">
-            Appel en attente, préparation livraison, ou en transit
+            {t("requiresActionDesc")}
           </p>
         </article>
         <article className="rounded-xl border border-outline-variant bg-surface p-5">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-            Commandes totales
+            {t("totalOrders")}
           </p>
           <p className="mt-2 font-headline text-4xl font-bold text-academic-blue">{totalOrders}</p>
         </article>
         <article className="rounded-xl border border-outline-variant bg-surface p-5">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-            Produits
+            {t("staffProducts")}
           </p>
           <p className="mt-2 font-headline text-4xl font-bold text-academic-blue">
             {stats?.products ?? "—"}
           </p>
           <Link className="mt-2 inline-block text-[13px] text-oxford-red" to="/dashboard/products">
-            Gérer les produits
+            {t("manageProducts")}
           </Link>
         </article>
         <article className="rounded-xl border border-outline-variant bg-surface p-5">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-            Revenu
+            {t("revenue")}
           </p>
           <p className="mt-2 font-headline text-3xl font-bold text-academic-blue">
             {stats?.revenue != null ? formatPrice(stats.revenue) : "—"}
           </p>
           <p className="mt-2 text-[14px] text-on-surface-variant">
-            {stats?.users ?? "—"} clients · {stats?.categories ?? "—"} catégories
+            {stats?.users ?? "—"} {t("customersCount")} · {stats?.categories ?? "—"} {t("categoriesCount")}
           </p>
         </article>
       </section>
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
       <section className="mt-8">
         <article className="rounded-xl border border-outline-variant bg-surface p-5">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-            En attente d'appel de confirmation
+            {t("awaitingConfirmationCall")}
           </p>
           <p className="mt-2 font-headline text-4xl font-bold text-academic-blue">
             {pendingCallCount}
@@ -166,7 +168,7 @@ export default function AdminDashboard() {
       {/* Top Selling Products */}
       {stats?.topProducts && stats.topProducts.length > 0 && (
         <section className="mt-8 rounded-xl border border-outline-variant bg-surface p-5">
-          <h2 className="font-headline text-xl font-semibold text-academic-blue mb-4">Produits les plus vendus</h2>
+          <h2 className="font-headline text-xl font-semibold text-academic-blue mb-4">{t("topSellingProducts")}</h2>
           <div className="space-y-4">
             {stats.topProducts.map((prod, index) => {
               const maxSold = Math.max(...stats.topProducts.map((p) => p.sold || 1));
@@ -175,7 +177,7 @@ export default function AdminDashboard() {
                 <div key={index} className="space-y-1">
                   <div className="flex justify-between text-[14px] font-medium text-academic-blue">
                     <span>{prod.name}</span>
-                    <span className="font-semibold text-oxford-red">{prod.sold} vendu(s) ({formatPrice(prod.revenue)})</span>
+                    <span className="font-semibold text-oxford-red">{prod.sold} {t("sold")} ({formatPrice(prod.revenue)})</span>
                   </div>
                   <div className="w-full bg-muted-gray h-3.5 rounded-full overflow-hidden">
                     <div
@@ -192,7 +194,7 @@ export default function AdminDashboard() {
 
       {/* Orders by Status — with conditional muted/active styling */}
       <section className="mt-8">
-        <h2 className="font-headline text-xl font-semibold text-academic-blue">Commandes par statut</h2>
+        <h2 className="font-headline text-xl font-semibold text-academic-blue">{t("ordersByStatus")}</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {countsByStatus.map((item) => {
             const isActive = item.count > 0;
@@ -227,14 +229,14 @@ export default function AdminDashboard() {
       {/* Recent Orders — redesigned as a clean data table */}
       {sortedRecentOrders.length > 0 && (
         <section className="mt-8">
-          <h2 className="font-headline text-xl font-semibold text-academic-blue mb-4">Commandes récentes</h2>
+          <h2 className="font-headline text-xl font-semibold text-academic-blue mb-4">{t("recentOrders")}</h2>
           <div className="rounded-xl border border-outline-variant bg-surface overflow-hidden">
             {/* Table header */}
             <div className="hidden sm:grid grid-cols-[auto_1fr_auto_auto] gap-4 px-5 py-3 bg-muted-gray border-b border-outline-variant text-[11px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">
-              <span>Commande</span>
-              <span>Client</span>
-              <span>Statut</span>
-              <span>Action</span>
+              <span>{t("orderLabel")}</span>
+              <span>{t("customerLabel")}</span>
+              <span>{t("statusLabel")}</span>
+              <span>{t("actionLabel")}</span>
             </div>
             {/* Table rows */}
             <ul className="divide-y divide-outline-variant">
@@ -267,7 +269,7 @@ export default function AdminDashboard() {
                       to={`/dashboard/orders/${order.id}`}
                       className="inline-flex items-center justify-center rounded-md border border-outline-variant px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-academic-blue hover:bg-surface-container hover:border-academic-blue transition-colors whitespace-nowrap"
                     >
-                      Gérer
+                      {t("manage")}
                     </Link>
                   </li>
                 );
@@ -279,7 +281,7 @@ export default function AdminDashboard() {
               to="/dashboard/orders"
               className="text-[12px] font-semibold uppercase tracking-[0.08em] text-oxford-red hover:underline"
             >
-              Voir toutes les commandes →
+              {t("viewAllOrders")}
             </Link>
           </div>
         </section>

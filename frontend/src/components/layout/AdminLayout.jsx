@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { NavLink, Link, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, LogOut, Package, ShoppingBag, Tags, Users, Image, Zap, Home } from "lucide-react";
+import { LayoutDashboard, LogOut, Package, ShoppingBag, Tags, Users, Image, Zap, Home, Globe } from "lucide-react";
 import logoImg from "@/img/Logo.png";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/lib/language";
 
 const navItems = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
@@ -16,7 +18,9 @@ const navItems = [
 
 export default function AdminLayout() {
   const { currentUser, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
 
   const linkClass = ({ isActive }) =>
     [
@@ -35,6 +39,60 @@ export default function AdminLayout() {
             <span className="font-headline text-lg font-bold text-academic-blue">Staff</span>
           </Link>
           <div className="flex items-center gap-3">
+            {/* Language Selector */}
+            <div className="relative">
+              <button
+                aria-label={t("selectLanguage")}
+                className="flex items-center gap-1.5 rounded-full border border-outline-variant/80 bg-surface px-3 py-1.5 text-academic-blue shadow-sm transition-all duration-200 hover:border-academic-blue hover:bg-surface-container-low"
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                type="button"
+              >
+                <Globe className="h-4 w-4 text-academic-blue/80" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-academic-blue">
+                  {language.toUpperCase()}
+                </span>
+              </button>
+              <div className={`absolute right-0 top-full mt-2 z-50 ${langDropdownOpen ? 'block' : 'hidden'}`}>
+                <div className="flex flex-col rounded-lg border border-outline-variant bg-surface shadow-lg overflow-hidden">
+                  <button
+                    className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-surface-container-low ${
+                      language === "fr" ? "bg-academic-blue/10 text-academic-blue" : "text-on-surface-variant"
+                    }`}
+                    onClick={() => {
+                      setLanguage("fr");
+                      setLangDropdownOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Français
+                  </button>
+                  <button
+                    className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-surface-container-low ${
+                      language === "en" ? "bg-academic-blue/10 text-academic-blue" : "text-on-surface-variant"
+                    }`}
+                    onClick={() => {
+                      setLanguage("en");
+                      setLangDropdownOpen(false);
+                    }}
+                    type="button"
+                  >
+                    English
+                  </button>
+                  <button
+                    className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-surface-container-low ${
+                      language === "ar" ? "bg-academic-blue/10 text-academic-blue" : "text-on-surface-variant"
+                    }`}
+                    onClick={() => {
+                      setLanguage("ar");
+                      setLangDropdownOpen(false);
+                    }}
+                    type="button"
+                  >
+                    العربية
+                  </button>
+                </div>
+              </div>
+            </div>
             <Link
               className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant hover:text-academic-blue"
               to="/shop"

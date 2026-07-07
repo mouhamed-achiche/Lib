@@ -104,3 +104,7 @@ dist/
 build/
 .DS_Store
 *.log
+
+
+cloudflare config :
+> cloudflared tunnel --url http://localhost:5173

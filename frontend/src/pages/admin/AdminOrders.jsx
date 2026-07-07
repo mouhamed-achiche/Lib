@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Phone, RefreshCw, Printer, FileText, Trash2 } from "lucide-react";
 import { useOrdersList } from "@/hooks/useOrdersList";
+import { useLanguage } from "@/lib/language";
 import {
   ORDER_STATUS,
   ORDER_STATUS_FILTER_OPTIONS,
@@ -775,6 +776,7 @@ function buildFacture(order) {
 export default function AdminOrders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, refresh, updateOrders } = useOrdersList();
+  const { t } = useLanguage();
   const statusFilter = searchParams.get("status") ?? "all";
   const yearFilter = searchParams.get("year") ?? "all";
 
@@ -808,7 +810,7 @@ export default function AdminOrders() {
   };
 
   const handleDelete = async (orderId) => {
-    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+    if (!confirm(t("confirmDelete"))) {
       return;
     }
     const nextOrders = await deleteOrder(orderId);
@@ -840,10 +842,10 @@ export default function AdminOrders() {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <h1 className="font-headline text-3xl font-bold tracking-tight text-academic-blue">
-            Gestion des commandes
+            {t("orderManagement")}
           </h1>
           <p className="mt-2 text-[16px] text-on-surface-variant">
-            Appelez le client pour confirmer, puis faites évoluer la commande jusqu'à la livraison.
+            {t("orderManagementSubtitle")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -853,10 +855,10 @@ export default function AdminOrders() {
             type="button"
           >
             <RefreshCw className="h-4 w-4" />
-            Actualiser
+            {t("refresh")}
           </button>
           <span className="rounded-full bg-oxford-red px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-white">
-            {attentionCount} nécessite une action
+            {attentionCount} {t("requiresActionBadge")}
           </span>
         </div>
       </div>
@@ -872,14 +874,14 @@ export default function AdminOrders() {
             onClick={() => setFilter(option.value)}
             type="button"
           >
-            {option.label}
+            {option.labelKey ? t(option.labelKey) : option.label}
           </button>
         ))}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-          Année:
+          {t("year")}:
         </span>
         <button
           className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${yearFilter === "all"
@@ -889,7 +891,7 @@ export default function AdminOrders() {
           onClick={() => setYearFilter("all")}
           type="button"
         >
-          Toutes
+          {t("allYears")}
         </button>
         {availableYears.map((year) => (
           <button
@@ -908,7 +910,7 @@ export default function AdminOrders() {
 
       <section className="mt-8 space-y-4">
         {loading ? (
-          <p className="text-on-surface-variant">Chargement des commandes...</p>
+          <p className="text-on-surface-variant">{t("loadingDashboard")}</p>
         ) : filteredOrders.length ? (
           filteredOrders.map((order) => {
             const normalizedStatus = normalizeOrderStatus(order.status);
@@ -926,25 +928,25 @@ export default function AdminOrders() {
                   <div>
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="text-[16px] font-semibold text-academic-blue">
-                        Commande #{formatOrderDisplayId(order.id)}
+                        {t("orderTitle")} #{formatOrderDisplayId(order.id)}
                       </h2>
                       {isGuest && (
                         <span className="rounded-full bg-muted-gray px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
-                          Invité
+                          {t("guest")}
                         </span>
                       )}
                       <span
                         className={`rounded-full px-3 py-1 text-[12px] font-semibold ${statusBadgeClass(meta.tone)}`}
                       >
-                        {meta.label}
+                        {getOrderStatusLabel(normalizedStatus, { t })}
                       </span>
                     </div>
                     <p className="mt-3 text-[14px] text-on-surface-variant">
-                      Passée le {new Date(order.createdAt).toLocaleString("fr-TN")}
+                      {t("placedOn")} {new Date(order.createdAt).toLocaleString("fr-TN")}
                     </p>
                     {order.statusUpdatedAt && order.statusUpdatedAt !== order.createdAt && (
                       <p className="mt-1 text-[13px] text-on-surface-variant">
-                        Statut mis à jour le {new Date(order.statusUpdatedAt).toLocaleString("fr-TN")}
+                        {t("statusUpdatedOn")} {new Date(order.statusUpdatedAt).toLocaleString("fr-TN")}
                       </p>
                     )}
                     <p className="mt-3 flex flex-wrap items-center gap-2 text-[14px] text-on-surface-variant">
@@ -957,13 +959,13 @@ export default function AdminOrders() {
                           href={`tel:${order.phone}`}
                         >
                           <Phone className="h-3 w-3" />
-                          Appeler
+                          {t("call")}
                         </a>
                       )}
                     </p>
                     <p className="mt-1 text-[14px] text-on-surface-variant">{order.address}</p>
                     {order.notes && (
-                      <p className="mt-3 text-[14px] text-on-surface-variant">Note: {order.notes}</p>
+                      <p className="mt-3 text-[14px] text-on-surface-variant">{t("note")}: {order.notes}</p>
                     )}
                     <ul className="mt-4 space-y-1 text-[14px] text-on-surface-variant">
                       {order.items?.map((item) => (
@@ -987,7 +989,7 @@ export default function AdminOrders() {
                         className="inline-flex items-center gap-1.5 rounded-md border border-outline-variant px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-academic-blue hover:bg-surface-container hover:border-academic-blue transition-colors"
                       >
                         <Printer className="h-3.5 w-3.5" />
-                        Facture
+                        {t("invoice")}
                       </button>
                       <button
                         type="button"
@@ -1000,7 +1002,7 @@ export default function AdminOrders() {
                         className="inline-flex items-center gap-1.5 rounded-md border border-outline-variant px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-academic-blue hover:bg-surface-container hover:border-academic-blue transition-colors"
                       >
                         <FileText className="h-3.5 w-3.5" />
-                        Bon De livraison
+                        {t("deliveryNote")}
                       </button>
                       <button
                         type="button"
@@ -1008,7 +1010,7 @@ export default function AdminOrders() {
                         className="inline-flex items-center gap-1.5 rounded-md border border-oxford-red/40 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-oxford-red hover:bg-oxford-red/10 hover:border-oxford-red transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Supprimer
+                        {t("delete")}
                       </button>
                     </div>
                   </div>
@@ -1022,7 +1024,7 @@ export default function AdminOrders() {
                     ) : (
                       <div className="space-y-2">
                         <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-                          Mettre à jour le statut
+                          {t("setStatus")}
                         </p>
                         <div className="flex flex-col gap-2">
                           {nextStatuses.map((nextStatus) => {
@@ -1047,7 +1049,7 @@ export default function AdminOrders() {
                                 onClick={() => updateStatus(order.id, nextStatus)}
                                 type="button"
                               >
-                                {getOrderStatusLabel(nextStatus)}
+                                {getOrderStatusLabel(nextStatus, { t })}
                               </button>
                             );
                           })}
@@ -1062,8 +1064,8 @@ export default function AdminOrders() {
         ) : (
           <p className="text-on-surface-variant">
             {orders.length
-              ? "Aucune commande ne correspond à ce filtre."
-              : "Aucune commande n'a encore été passée."}
+              ? t("noProductsMatch")
+              : t("cartEmpty")}
           </p>
         )}
       </section>
