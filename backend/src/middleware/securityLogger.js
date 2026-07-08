@@ -6,11 +6,12 @@
 const fs = require('fs');
 const path = require('path');
 
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const LOG_DIR = path.join(__dirname, '../../logs');
 const SECURITY_LOG = path.join(LOG_DIR, 'security.log');
 
-// Ensure log directory exists
-if (!fs.existsSync(LOG_DIR)) {
+// File logging is not available on Vercel serverless (read-only filesystem)
+if (!isServerless && !fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
@@ -27,13 +28,14 @@ function logSecurityEvent(event, details = {}) {
   
   const logLine = JSON.stringify(logEntry) + '\n';
   
-  // Write to file
-  fs.appendFile(SECURITY_LOG, logLine, (err) => {
-    if (err) console.error('Failed to write security log:', err);
-  });
-  
-  // Also log to console in production for monitoring
-  if (process.env.NODE_ENV === 'production') {
+  // Write to file (skip on serverless — filesystem is read-only)
+  if (!isServerless) {
+    fs.appendFile(SECURITY_LOG, logLine, (err) => {
+      if (err) console.error('Failed to write security log:', err);
+    });
+  }
+
+  if (process.env.NODE_ENV === 'production' || isServerless) {
     console.log(`[SECURITY] ${event}:`, JSON.stringify(details));
   }
 }

@@ -158,7 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuthSession();
       setCurrentUser(null);
       if (error instanceof TypeError) {
-        throw new Error(`Network error: ${error.message}. Check if backend is running on port 5000.`);
+        throw new Error(
+          `Network error: ${error.message}. Check that VITE_API_BASE_URL points to your deployed backend (e.g. https://your-backend.vercel.app/api).`,
+        );
       }
       if (error instanceof Error) {
         throw new Error(error.message);

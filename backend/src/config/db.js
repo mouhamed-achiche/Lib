@@ -1,20 +1,34 @@
 require('dotenv').config()
 const path = require('path')
-const sqlite3 = require('sqlite3').verbose()
 
 let db = null
 let pool = null
 let dbFailed = false
+let sqlite3Module = null
 
 // Determine which database to use based on environment
 const isProduction = process.env.NODE_ENV === 'production'
-const usePostgres = isProduction && process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith('sqlite:')
+const usePostgres =
+  isProduction &&
+  process.env.DATABASE_URL &&
+  !process.env.DATABASE_URL.startsWith('sqlite:')
+
+function getSqlite3() {
+  if (!sqlite3Module) {
+    sqlite3Module = require('sqlite3').verbose()
+  }
+  return sqlite3Module
+}
 
 function hasDbConfig() {
-  if (usePostgres) {
-    return !dbFailed && Boolean(process.env.DATABASE_URL)
+  if (isProduction) {
+    return (
+      !dbFailed &&
+      Boolean(process.env.DATABASE_URL) &&
+      !process.env.DATABASE_URL.startsWith('sqlite:')
+    )
   }
-  return !dbFailed && Boolean(process.env.DB_PATH)
+  return !dbFailed
 }
 
 function setDbFailed(failed) {
@@ -22,18 +36,16 @@ function setDbFailed(failed) {
 }
 
 function getDb() {
-  // For PostgreSQL, we use pool instead of db
-  if (usePostgres) {
+  if (isProduction || usePostgres) {
     return null
   }
-  
   if (!hasDbConfig()) {
     return null
   }
   if (!db) {
     try {
       const dbPath = process.env.DB_PATH || path.join(__dirname, '../../database.sqlite')
-      db = new sqlite3.Database(dbPath, (err) => {
+      db = new getSqlite3().Database(dbPath, (err) => {
         if (err) {
           console.error('Database connection error:', err)
           setDbFailed(true)
@@ -151,10 +163,12 @@ class SQLitePool {
 
 function getPool() {
   if (!hasDbConfig()) {
+    if (isProduction) {
+      console.error('DATABASE_URL is not configured for production')
+    }
     return null
   }
   
-  // Use PostgreSQL pool in production, SQLite pool in development
   if (usePostgres) {
     if (!pool) {
       const getPostgresPool = require('./db.postgres')

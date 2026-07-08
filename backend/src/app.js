@@ -83,6 +83,11 @@ app.use(cors({
     if (origin && origin.endsWith('.trycloudflare.com')) {
       return callback(null, true)
     }
+
+    // Allow Vercel preview and production deployments
+    if (origin && origin.endsWith('.vercel.app')) {
+      return callback(null, true)
+    }
     
     return callback(new Error('Not allowed by CORS'))
   },
@@ -99,7 +104,16 @@ app.disable('x-powered-by')
 const { hasDbConfig } = require('./config/db')
 
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, data: { ok: true, dbConnected: hasDbConfig() } })
+  const dbConnected = hasDbConfig()
+  res.json({
+    success: true,
+    data: {
+      ok: true,
+      dbConnected,
+      env: process.env.NODE_ENV || 'development',
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+    },
+  })
 })
 
 // CSRF token endpoint (must be before protected routes)
