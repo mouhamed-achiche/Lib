@@ -113,7 +113,7 @@ async function listProducts(query = {}) {
 
   return {
     items: rows.map((row) => mapProductRow(row)),
-    total,
+    total: Number(total),
     page: Number(page),
     limit: Number(limit),
     totalPages: Math.ceil(total / Number(limit)) || 1,

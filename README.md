@@ -2,9 +2,9 @@
 
 ## Architecture Overview
 
-### Backend (Node.js + Express + SQLite)
+### Backend (Node.js + Express + PostgreSQL)
 - **Framework**: Express.js with modular route structure
-- **Database**: SQLite with repository pattern for data access
+- **Database**: PostgreSQL (Supabase) with repository pattern for data access
 - **Authentication**: JWT-based auth with refresh tokens, bcrypt password hashing
 - **Security**: Helmet, CORS, rate limiting, CSRF protection, input sanitization, account lockout
 - **Features**:
@@ -41,8 +41,7 @@
 │   │   ├── routes/          # API routes organized by feature
 │   │   └── app.js           # Express app configuration
 │   ├── scripts/             # Database setup and maintenance scripts
-│   ├── server.js            # Entry point
-│   └── database.sqlite      # SQLite database
+│   └── server.js            # Entry point
 ├── frontend/
 │   ├── src/
 │   │   ├── components/      # React components (layout, UI, feature components)
@@ -71,7 +70,7 @@ taskkill /PID 12345 /F
 ```
 Replace `12345` with the number in the **last column** of the `LISTENING` line (not the word `pid`).
 
-**Database Setup** (optional, uses SQLite by default):
+**Database Setup** (requires `DATABASE_URL` in `backend/.env`):
 ```bash
 npm run db:setup
 ```
