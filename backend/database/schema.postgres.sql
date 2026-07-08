@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT,
   address TEXT,
   city TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Categories table
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS brands (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
+  logo_url TEXT,
   is_active INTEGER DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -42,15 +44,19 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,
   price NUMERIC(10,2) NOT NULL,
   sale_price NUMERIC(10,2),
-  original_price NUMERIC(10,2),
   stock_qty INTEGER DEFAULT 0,
-  available INTEGER DEFAULT 1,
   category_id INTEGER,
   brand_id INTEGER,
   badge TEXT DEFAULT 'none',
-  is_active INTEGER DEFAULT 1,
+  is_featured INTEGER DEFAULT 0,
   image_url TEXT,
+  specifications TEXT,
+  is_active INTEGER DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  original_price NUMERIC(10,2),
+  promotion_end_date TIMESTAMP,
+  promotion_type TEXT DEFAULT 'none',
   FOREIGN KEY (category_id) REFERENCES categories(id),
   FOREIGN KEY (brand_id) REFERENCES brands(id)
 );
@@ -88,20 +94,21 @@ CREATE TABLE IF NOT EXISTS cart_items (
 CREATE TABLE IF NOT EXISTS orders (
   id SERIAL PRIMARY KEY,
   user_id INTEGER,
+  external_id TEXT,
   order_number TEXT UNIQUE NOT NULL,
-  external_id TEXT UNIQUE NOT NULL,
   status TEXT DEFAULT 'pending_approval_call',
   subtotal NUMERIC(10,2) NOT NULL,
-  shipping_cost NUMERIC(10,2) DEFAULT 0,
-  tax NUMERIC(10,2) DEFAULT 0,
+  shipping_cost NUMERIC(10,2) DEFAULT 0.00,
+  tax NUMERIC(10,2) DEFAULT 0.00,
   total NUMERIC(10,2) NOT NULL,
-  shipping_name TEXT,
+  shipping_name TEXT NOT NULL,
   shipping_phone TEXT,
-  shipping_address TEXT,
-  shipping_city TEXT,
+  shipping_address TEXT NOT NULL,
+  shipping_city TEXT DEFAULT '',
   notes TEXT,
   status_updated_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
@@ -115,7 +122,6 @@ CREATE TABLE IF NOT EXISTS order_items (
   unit_price NUMERIC(10,2) NOT NULL,
   quantity INTEGER NOT NULL,
   subtotal NUMERIC(10,2) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
@@ -200,6 +206,22 @@ CREATE TABLE IF NOT EXISTS homepage_section_products (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (section_id) REFERENCES homepage_sections(id) ON DELETE CASCADE,
   UNIQUE(section_id, product_id)
+);
+
+-- Deals table
+CREATE TABLE IF NOT EXISTS deals (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  ref TEXT,
+  description TEXT,
+  original_price REAL NOT NULL,
+  discount TEXT,
+  sale_price REAL NOT NULL,
+  expiry_timestamp TIMESTAMP NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better performance
