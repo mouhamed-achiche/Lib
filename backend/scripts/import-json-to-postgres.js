@@ -1,24 +1,18 @@
 /**
- * Automated migration script from SQLite to PostgreSQL (Supabase)
- * Usage: node scripts/migrate-to-postgres.js
+ * Import JSON data to PostgreSQL
+ * Usage: node scripts/import-json-to-postgres.js
  * 
- * This script:
- * 1. Creates a backup of the SQLite database
- * 2. Reads all data from SQLite
- * 3. Creates PostgreSQL schema
- * 4. Migrates data with proper transformations
- * 5. Resets PostgreSQL sequences
- * 6. Validates the migration
+ * This script imports JSON data exported from SQLite into PostgreSQL
+ * Can run from any environment with PostgreSQL connectivity (e.g., Vercel)
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') })
+require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
-const sqlite3 = require('sqlite3').verbose()
 const { Pool } = require('pg')
 
-// Configuration
-const SQLITE_DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'database.sqlite')
+const IMPORT_DIR = path.join(__dirname, '..', 'migrations', 'data')
+const IMPORT_FILE = path.join(IMPORT_DIR, 'sqlite-export.json')
 const POSTGRES_URL = process.env.DATABASE_URL
 
 // Migration order (respecting foreign key dependencies)
@@ -76,49 +70,15 @@ function transformRow(row, table) {
   return transformed
 }
 
-// Create backup
-function createBackup() {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-  const backupPath = `${SQLITE_DB_PATH}.backup.${timestamp}`
-  fs.copyFileSync(SQLITE_DB_PATH, backupPath)
-  console.log(`✅ Backup created: ${backupPath}`)
-  return backupPath
-}
-
-// Read SQLite data
-async function readSQLiteData() {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(SQLITE_DB_PATH, (err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-    })
-
-    const data = {}
-
-    const readTable = (index) => {
-      if (index >= MIGRATION_ORDER.length) {
-        db.close()
-        resolve(data)
-        return
-      }
-
-      const table = MIGRATION_ORDER[index]
-      db.all(`SELECT * FROM ${table}`, (err, rows) => {
-        if (err) {
-          console.warn(`⚠️  Warning reading ${table}:`, err.message)
-          data[table] = []
-        } else {
-          data[table] = rows || []
-          console.log(`📖 Read ${rows.length} rows from ${table}`)
-        }
-        readTable(index + 1)
-      })
-    }
-
-    readTable(0)
-  })
+// Read JSON data
+function readJSONData() {
+  if (!fs.existsSync(IMPORT_FILE)) {
+    throw new Error(`Export file not found: ${IMPORT_FILE}`)
+  }
+  
+  const data = JSON.parse(fs.readFileSync(IMPORT_FILE, 'utf8'))
+  console.log('📖 JSON data loaded successfully')
+  return data
 }
 
 // Create PostgreSQL schema
@@ -127,7 +87,6 @@ async function createPostgresSchema(pool) {
   const schemaPath = path.join(__dirname, '..', 'database', 'schema.postgres.sql')
   const schema = fs.readFileSync(schemaPath, 'utf8')
   
-  // Split schema into individual statements
   const statements = schema.split(';').filter(s => s.trim())
   
   for (const statement of statements) {
@@ -145,22 +104,20 @@ async function createPostgresSchema(pool) {
 
 // Insert data into PostgreSQL
 async function insertPostgresData(pool, data) {
-  console.log('\n📝 Migrating data to PostgreSQL...')
+  console.log('\n📝 Importing data to PostgreSQL...')
   
   for (const table of MIGRATION_ORDER) {
     const rows = data[table]
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       console.log(`⏭️  Skipping ${table} (no data)`)
       continue
     }
 
     try {
-      // Get column names from the first row
       const columns = Object.keys(rows[0])
       const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ')
       const columnNames = columns.join(', ')
       
-      // Insert each row
       for (const row of rows) {
         const transformed = transformRow(row, table)
         const values = columns.map(col => transformed[col])
@@ -177,9 +134,9 @@ async function insertPostgresData(pool, data) {
         }
       }
       
-      console.log(`✅ Migrated ${rows.length} rows to ${table}`)
+      console.log(`✅ Imported ${rows.length} rows to ${table}`)
     } catch (err) {
-      console.error(`❌ Error migrating ${table}:`, err.message)
+      console.error(`❌ Error importing ${table}:`, err.message)
       throw err
     }
   }
@@ -191,7 +148,6 @@ async function resetSequences(pool) {
   
   for (const table of MIGRATION_ORDER) {
     try {
-      // Get the max ID for the table
       const result = await pool.query(`SELECT MAX(id) as max_id FROM ${table}`)
       const maxId = result.rows[0].max_id
       
@@ -200,7 +156,6 @@ async function resetSequences(pool) {
         console.log(`🔄 Reset ${table}_id_seq to ${maxId}`)
       }
     } catch (err) {
-      // Some tables might not have sequences or different naming
       console.warn(`⚠️  Could not reset sequence for ${table}: ${err.message}`)
     }
   }
@@ -208,23 +163,23 @@ async function resetSequences(pool) {
   console.log('✅ Sequences reset')
 }
 
-// Validate migration
-async function validateMigration(pool, sqliteData) {
-  console.log('\n🔍 Validating migration...')
+// Validate import
+async function validateImport(pool, jsonData) {
+  console.log('\n🔍 Validating import...')
   
   let allValid = true
   
   for (const table of MIGRATION_ORDER) {
-    const sqliteCount = sqliteData[table].length
+    const jsonCount = jsonData[table]?.length || 0
     
     try {
       const result = await pool.query(`SELECT COUNT(*) as count FROM ${table}`)
       const postgresCount = parseInt(result.rows[0].count)
       
-      if (sqliteCount === postgresCount) {
-        console.log(`✅ ${table}: ${sqliteCount} rows (matched)`)
+      if (jsonCount === postgresCount) {
+        console.log(`✅ ${table}: ${jsonCount} rows (matched)`)
       } else {
-        console.warn(`⚠️  ${table}: SQLite=${sqliteCount}, PostgreSQL=${postgresCount} (mismatch)`)
+        console.warn(`⚠️  ${table}: JSON=${jsonCount}, PostgreSQL=${postgresCount} (mismatch)`)
         allValid = false
       }
     } catch (err) {
@@ -236,91 +191,59 @@ async function validateMigration(pool, sqliteData) {
   return allValid
 }
 
-// Main migration function
-async function migrate() {
-  console.log('🚀 Starting SQLite to PostgreSQL migration...\n')
+// Main import function
+async function importToPostgres() {
+  console.log('🚀 Starting JSON to PostgreSQL import...\n')
   
-  // Validate environment
   if (!POSTGRES_URL) {
     console.error('❌ DATABASE_URL not set in environment variables')
     process.exit(1)
   }
-  
-  if (!fs.existsSync(SQLITE_DB_PATH)) {
-    console.error(`❌ SQLite database not found: ${SQLITE_DB_PATH}`)
-    process.exit(1)
-  }
 
   try {
-    // Create backup
-    const backupPath = createBackup()
-    
-    // Read SQLite data
-    console.log('\n📖 Reading data from SQLite...')
-    const sqliteData = await readSQLiteData()
+    // Read JSON data
+    console.log('📖 Reading JSON data...')
+    const jsonData = readJSONData()
     
     // Connect to PostgreSQL
     console.log('\n🔌 Connecting to PostgreSQL...')
+    const pool = new Pool({
+      connectionString: POSTGRES_URL,
+      ssl: { rejectUnauthorized: false }
+    })
     
-    // Use connection string from environment or fallback to hardcoded values
-    let pool
-    if (POSTGRES_URL) {
-      pool = new Pool({
-        connectionString: POSTGRES_URL,
-        ssl: { rejectUnauthorized: false }
-      })
-    } else {
-      // Fallback to hardcoded values for Vercel environment
-      pool = new Pool({
-        host: 'db.fvtlnczpoehcfwelizty.supabase.co',
-        port: 5432,
-        database: 'postgres',
-        user: 'postgres',
-        password: 'Jibl9hwaFiydk88754',
-        ssl: { rejectUnauthorized: false }
-      })
-    }
-    
-    // Test connection
     await pool.query('SELECT NOW()')
     console.log('✅ Connected to PostgreSQL')
     
     // Create schema
     await createPostgresSchema(pool)
     
-    // Migrate data
-    await insertPostgresData(pool, sqliteData)
+    // Import data
+    await insertPostgresData(pool, jsonData)
     
     // Reset sequences
     await resetSequences(pool)
     
     // Validate
-    const isValid = await validateMigration(pool, sqliteData)
+    const isValid = await validateImport(pool, jsonData)
     
-    // Close connection
     await pool.end()
     
     if (isValid) {
-      console.log('\n✅ Migration completed successfully!')
-      console.log(`📦 Backup saved at: ${backupPath}`)
-      console.log('\n💡 Next steps:')
-      console.log('1. Test the application with PostgreSQL')
-      console.log('2. Update DATABASE_URL in production environment')
-      console.log('3. Deploy to Vercel')
+      console.log('\n✅ Import completed successfully!')
     } else {
-      console.log('\n⚠️  Migration completed with validation warnings')
-      console.log('Please review the warnings above')
+      console.log('\n⚠️  Import completed with validation warnings')
     }
     
   } catch (err) {
-    console.error('\n❌ Migration failed:', err.message)
+    console.error('\n❌ Import failed:', err.message)
     console.error(err.stack)
     process.exit(1)
   }
 }
 
-// Run migration
-migrate().catch(err => {
+// Run import
+importToPostgres().catch(err => {
   console.error('❌ Fatal error:', err)
   process.exit(1)
 })

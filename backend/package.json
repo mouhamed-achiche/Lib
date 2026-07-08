@@ -9,6 +9,9 @@
     "db:setup": "node scripts/setup-database.js",
     "db:migrate": "node scripts/migrate-to-postgres.js",
     "db:rollback": "node scripts/rollback-migration.js",
+    "db:export": "node scripts/export-sqlite-to-json.js",
+    "db:import": "node scripts/import-json-to-postgres.js",
+    "vercel-build": "echo 'Build complete'",
     "install:prod": "npm ci --only=production",
     "install:ci": "npm ci"
   },
