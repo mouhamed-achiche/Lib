@@ -6,7 +6,14 @@ let db = null
 let pool = null
 let dbFailed = false
 
+// Determine which database to use based on environment
+const isProduction = process.env.NODE_ENV === 'production'
+const usePostgres = isProduction && process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith('sqlite:')
+
 function hasDbConfig() {
+  if (usePostgres) {
+    return !dbFailed && Boolean(process.env.DATABASE_URL)
+  }
   return !dbFailed && Boolean(process.env.DB_PATH)
 }
 
@@ -15,6 +22,11 @@ function setDbFailed(failed) {
 }
 
 function getDb() {
+  // For PostgreSQL, we use pool instead of db
+  if (usePostgres) {
+    return null
+  }
+  
   if (!hasDbConfig()) {
     return null
   }
@@ -141,6 +153,17 @@ function getPool() {
   if (!hasDbConfig()) {
     return null
   }
+  
+  // Use PostgreSQL pool in production, SQLite pool in development
+  if (usePostgres) {
+    if (!pool) {
+      const getPostgresPool = require('./db.postgres')
+      pool = getPostgresPool()
+    }
+    return pool
+  }
+  
+  // Use SQLite pool for development
   if (!pool) {
     pool = new SQLitePool()
   }
