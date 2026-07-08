@@ -2,7 +2,7 @@ module.exports = (err, req, res, next) => {
   const isDev = process.env.NODE_ENV !== 'production';
   
   // Log error securely (without exposing sensitive data in production)
-  console.error(isDev ? err : `[${err.name}] ${err.message}`);
+  console.error(isDev ? err : `[${err.name || 'Error'}] ${err.message}`, isDev ? err.stack : '')
   
   const status = err.statusCode || 500;
   

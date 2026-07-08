@@ -2,6 +2,7 @@ require('dotenv').config()
 const { Pool } = require('pg')
 
 let pool = null
+let wrappedPool = null
 let dbFailed = false
 
 function hasDbConfig() {
@@ -12,35 +13,71 @@ function setDbFailed(failed) {
   dbFailed = failed
 }
 
+function toPostgresSql(sql) {
+  let text = sql
+    .replace(/datetime\(\s*'now'\s*,\s*'-(\d+) days'\s*\)/gi, (_, days) => `NOW() - INTERVAL '${days} days'`)
+    .replace(/datetime\(\s*'now'\s*\)/gi, 'NOW()')
+    .replace(/strftime\(\s*'%Y'\s*,\s*created_at\s*\)/gi, "TO_CHAR(created_at, 'YYYY')")
+
+  let index = 0
+  text = text.replace(/\?/g, () => `$${++index}`)
+  const trimmed = text.trim()
+
+  if (/^INSERT/i.test(trimmed) && !/RETURNING/i.test(trimmed)) {
+    return text.replace(/;\s*$/, '') + ' RETURNING id'
+  }
+
+  return text
+}
+
+// Wrap pg so repositories can keep using `?` placeholders and `[rows]` destructuring.
+class PostgresPool {
+  constructor(pgPool) {
+    this.pgPool = pgPool
+  }
+
+  async query(sql, params = []) {
+    const text = toPostgresSql(sql)
+    const result = await this.pgPool.query(text, params)
+    const isModification = /^\s*(INSERT|UPDATE|DELETE)/i.test(sql.trim())
+
+    if (isModification) {
+      return [[{
+        fieldCount: 0,
+        affectedRows: result.rowCount,
+        insertId: result.rows[0]?.id,
+        info: '',
+        serverStatus: 0,
+        warningCount: 0,
+      }]]
+    }
+
+    return [result.rows, result.fields || []]
+  }
+
+  async execute(sql, params = []) {
+    return this.query(sql, params)
+  }
+}
+
 function getPool() {
   if (!hasDbConfig()) {
     return null
   }
+
   if (!pool) {
     try {
-      const connectionString = process.env.DATABASE_URL
-      
       pool = new Pool({
-        connectionString,
+        connectionString: process.env.DATABASE_URL,
         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-        max: 20,
+        max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 10000,
       })
 
       pool.on('error', (err) => {
-        console.error('Unexpected error on idle client', err)
+        console.error('Unexpected error on idle PostgreSQL client', err)
         setDbFailed(true)
-      })
-
-      // Test connection
-      pool.query('SELECT NOW()', (err, res) => {
-        if (err) {
-          console.error('PostgreSQL connection error:', err)
-          setDbFailed(true)
-        } else {
-          console.log('PostgreSQL connected successfully at:', res.rows[0].now)
-        }
       })
     } catch (err) {
       console.error('PostgreSQL configuration error:', err)
@@ -48,13 +85,19 @@ function getPool() {
       return null
     }
   }
-  return pool
+
+  if (!wrappedPool) {
+    wrappedPool = new PostgresPool(pool)
+  }
+
+  return wrappedPool
 }
 
 async function closeDb() {
   if (pool) {
     await pool.end()
     pool = null
+    wrappedPool = null
   }
 }
 
