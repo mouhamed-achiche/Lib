@@ -101,19 +101,33 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 // Disable X-Powered-By header
 app.disable('x-powered-by')
 
-const { hasDbConfig } = require('./config/db')
+const { testConnection } = require('./config/db')
 
-app.get('/api/health', (req, res) => {
-  const dbConnected = hasDbConfig()
-  res.json({
-    success: true,
-    data: {
-      ok: true,
-      dbConnected,
-      env: process.env.NODE_ENV || 'development',
-      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
-    },
-  })
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbStatus = await testConnection()
+    res.json({
+      success: true,
+      data: {
+        ok: dbStatus.ok,
+        dbConnected: dbStatus.ok,
+        env: process.env.NODE_ENV || 'development',
+        hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+        users: dbStatus.users ?? null,
+        products: dbStatus.products ?? null,
+        error: dbStatus.error ?? null,
+      },
+    })
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      data: {
+        ok: false,
+        dbConnected: false,
+        error: error.message,
+      },
+    })
+  }
 })
 
 // CSRF token endpoint (must be before protected routes)

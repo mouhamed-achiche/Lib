@@ -97,13 +97,14 @@ async function listProducts(query = {}) {
   };
   const orderBy = orderMap[sort] || orderMap.newest;
 
-  const [[{ total }]] = await pool.query(
-    `SELECT COUNT(*) AS total FROM products p
+  const [countRows] = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
      LEFT JOIN brands b ON p.brand_id = b.id
      WHERE p.is_active = 1 ${where}`,
     params,
   );
+  const total = Number(countRows[0]?.total ?? 0);
 
   const offset = (Number(page) - 1) * Number(limit);
   const [rows] = await pool.query(

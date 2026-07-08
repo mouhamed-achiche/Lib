@@ -11,6 +11,9 @@ module.exports = (err, req, res, next) => {
   if (!isDev && status === 500) {
     message = 'Internal Server Error';
   }
+  if (status === 503) {
+    message = err.message;
+  }
   
   res.status(status).json({ 
     success: false, 

@@ -4,6 +4,7 @@ const { mapUserRow } = require("../lib/mappers");
 
 async function getUserByEmail(email) {
   const pool = getPool();
+  if (!pool) throw new Error("Database not available");
   const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [
     String(email).toLowerCase(),
   ]);
