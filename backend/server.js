@@ -3,27 +3,35 @@ const app = require('./src/app')
 const { hasDbConfig, setDbFailed, getDb } = require('./src/config/db')
 
 const PORT = process.env.PORT || 5000
+const isProduction = process.env.NODE_ENV === 'production'
 
 ;(async () => {
   try {
     if (!hasDbConfig()) {
-      console.error('❌ SQLite database not configured. Please set DB_PATH in .env file.')
+      console.error('❌ Database not configured. Please set DB_PATH or DATABASE_URL in .env file.')
       process.exit(1)
     }
 
-    const db = getDb()
-    if (!db) {
-      throw new Error('Failed to initialize database')
-    }
-
-    // Test the connection by querying SQLite master table
-    db.get("SELECT 1", (err) => {
-      if (err) {
-        throw new Error('Database test failed: ' + err.message)
-      }
-      console.log('✅ SQLite database connected')
+    if (isProduction) {
+      // In production, use PostgreSQL (configured in db.js)
+      console.log('🔧 Production mode: Using PostgreSQL')
       startServer(PORT)
-    })
+    } else {
+      // In development, use SQLite
+      const db = getDb()
+      if (!db) {
+        throw new Error('Failed to initialize database')
+      }
+
+      // Test the connection by querying SQLite master table
+      db.get("SELECT 1", (err) => {
+        if (err) {
+          throw new Error('Database test failed: ' + err.message)
+        }
+        console.log('✅ SQLite database connected')
+        startServer(PORT)
+      })
+    }
   } catch (err) {
     setDbFailed(true)
     console.error('❌ Database connection failed:', err.message)
