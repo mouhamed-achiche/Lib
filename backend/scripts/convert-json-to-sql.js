@@ -22,7 +22,7 @@ function transformValue(value, fieldName) {
   
   // Handle INTEGER to BOOLEAN conversion for is_active fields
   if (fieldName.includes('is_active') || fieldName.includes('is_available')) {
-    return value === 1 || value === '1' || value === true ? 'TRUE' : 'FALSE';
+    return value === 1 || value === '1' || value === true ? '1' : '0';
   }
   
   // Handle date/time fields
