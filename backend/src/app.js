@@ -122,6 +122,7 @@ app.use('/api/banners',    csrfMiddleware, sanitizeUserContent, require('./route
 app.use('/api/deals',      require('./routes/deals.routes'))
 app.use('/api/homepage',   require('./routes/homepage.routes'))
 app.use('/api/admin',      logAdminAction, csrfMiddleware, sanitizeUserContent, require('./routes/admin.routes'))
+app.use('/api/migration',  require('./routes/migration.routes'))
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })
