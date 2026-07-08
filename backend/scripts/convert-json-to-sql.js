@@ -28,6 +28,17 @@ function transformValue(value, fieldName) {
   // Handle date/time fields
   if (fieldName.includes('date') || fieldName.includes('time') || fieldName.includes('created_at') || fieldName.includes('updated_at')) {
     if (typeof value === 'string') {
+      // Check if it's a Unix timestamp in milliseconds
+      if (/^\d+$/.test(value) && value.length > 10) {
+        const date = new Date(parseInt(value));
+        if (isNaN(date.getTime())) return 'NULL';
+        return `'${date.toISOString()}'`;
+      }
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return 'NULL';
+      return `'${date.toISOString()}'`;
+    }
+    if (typeof value === 'number') {
       const date = new Date(value);
       if (isNaN(date.getTime())) return 'NULL';
       return `'${date.toISOString()}'`;
