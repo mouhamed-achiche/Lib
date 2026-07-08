@@ -3,24 +3,26 @@ const { Pool } = require('pg')
 
 let pool = null
 let wrappedPool = null
-let dbFailed = false
+let lastPoolError = null
+
+function getDatabaseUrl() {
+  return (process.env.DATABASE_URL || '').trim()
+}
 
 function hasDbConfig() {
-  return !dbFailed && Boolean(process.env.DATABASE_URL)
+  return Boolean(getDatabaseUrl())
 }
 
 function setDbFailed(failed) {
-  dbFailed = failed
+  if (!failed) lastPoolError = null
 }
 
 function getConnectionString() {
-  let url = process.env.DATABASE_URL || ''
+  let url = getDatabaseUrl()
   if (!url) return url
 
-  if (
-    (url.includes('pooler.supabase.com') || url.includes(':6543')) &&
-    !url.includes('pgbouncer=')
-  ) {
+  // pgbouncer=true is only for transaction pooler (port 6543), not session pooler (5432)
+  if (url.includes('pooler.supabase.com') && url.includes(':6543') && !url.includes('pgbouncer=')) {
     url += `${url.includes('?') ? '&' : '?'}pgbouncer=true`
   }
 
@@ -28,7 +30,7 @@ function getConnectionString() {
 }
 
 function useSsl() {
-  const url = process.env.DATABASE_URL || ''
+  const url = getDatabaseUrl()
   return (
     process.env.NODE_ENV === 'production' ||
     url.includes('supabase.com') ||
@@ -61,7 +63,13 @@ function wrapDbError(err) {
   }
 
   if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
-    const error = new Error('Cannot reach PostgreSQL. Check DATABASE_URL in Vercel environment variables.')
+    const error = new Error('Cannot reach PostgreSQL. Use the Supabase Session pooler URI in DATABASE_URL.')
+    error.statusCode = 503
+    return error
+  }
+
+  if (err.code === 'XX000' || err.message?.includes('Tenant or user not found')) {
+    const error = new Error('Invalid Supabase credentials in DATABASE_URL. Check username format: postgres.[project-ref]')
     error.statusCode = 503
     return error
   }
@@ -104,8 +112,9 @@ class PostgresPool {
 }
 
 function getPool() {
-  if (!hasDbConfig()) {
-    console.error('DATABASE_URL is not configured')
+  const url = getDatabaseUrl()
+  if (!url) {
+    lastPoolError = 'DATABASE_URL is empty'
     return null
   }
 
@@ -120,17 +129,23 @@ function getPool() {
       })
 
       pool.on('error', (err) => {
-        console.error('Unexpected error on idle PostgreSQL client', err)
-        setDbFailed(true)
+        console.error('Unexpected error on idle PostgreSQL client', err.message)
+        lastPoolError = err.message
+        pool = null
+        wrappedPool = null
       })
+
+      lastPoolError = null
     } catch (err) {
-      console.error('PostgreSQL configuration error:', err)
-      setDbFailed(true)
+      console.error('PostgreSQL configuration error:', err.message)
+      lastPoolError = err.message
+      pool = null
+      wrappedPool = null
       return null
     }
   }
 
-  if (!wrappedPool) {
+  if (!wrappedPool && pool) {
     wrappedPool = new PostgresPool(pool)
   }
 
@@ -138,9 +153,17 @@ function getPool() {
 }
 
 async function testConnection() {
+  if (!hasDbConfig()) {
+    return { ok: false, error: 'DATABASE_URL is not set in environment variables' }
+  }
+
   const dbPool = getPool()
   if (!dbPool) {
-    return { ok: false, error: 'DATABASE_URL is not configured' }
+    return {
+      ok: false,
+      error: lastPoolError || 'Failed to create database pool',
+      host: safeHost(getConnectionString()),
+    }
   }
 
   try {
@@ -153,10 +176,26 @@ async function testConnection() {
       ok: true,
       users: users[0]?.count ?? 0,
       products: products[0]?.count ?? 0,
+      host: safeHost(getConnectionString()),
     }
   } catch (err) {
-    setDbFailed(true)
-    return { ok: false, error: err.message }
+    pool = null
+    wrappedPool = null
+    lastPoolError = err.message
+    return {
+      ok: false,
+      error: err.message,
+      host: safeHost(getConnectionString()),
+    }
+  }
+}
+
+function safeHost(connectionString) {
+  try {
+    const parsed = new URL(connectionString)
+    return parsed.hostname
+  } catch {
+    return null
   }
 }
 
